@@ -1,0 +1,44 @@
+USAGES:
+
+NOTES:
+- This is not a blind followed instructions, but it will require some background knowledge in general development in Windows, VS, .NET and C#
+- You cannot ignore the basic principles like patterns, oop, API etc..you name it
+
+Development time:
+=================
+Used assemblies:
++ MSA.Zmq.JsonRpc
++ Dependencies based on conditions and project
+
+Steps:
+1. Add a simple project that will function as single worker server, console app will be enough with the minimum codes in the entry program:
+
+            var pub = Worker.Create(3001);
+            pub.AddHandlerType(typeof(CommonLookup));
+            pub.Start();
+
+            Console.WriteLine("Press ENTER to exit...");
+            Console.ReadLine();
+
+            pub.Dispose();
+            
+
+2. Run the program as one of the item in multiple startup solution
+
+
+
+Deployment time:
+================
+Used assemblies:
++ MSA.Zmq.JsonRpc
++ MSA.Zmq.Service
++ Dependencies based on conditions and project
+
+Steps:
+1. Modify the application configuration file by listing the assemblies that contain the service handler
+2. Put the assemblies in the same folder with the service program itself
+3. Install the service as router
+4. Install the service as worker
+5. Start the services
+6. Set the logging level or check the log file when needed for diagnostic
+
