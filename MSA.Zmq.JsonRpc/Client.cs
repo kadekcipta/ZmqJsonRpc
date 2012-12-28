@@ -1,11 +1,10 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 using System.Threading;
 using ZeroMQ;
-using Newtonsoft.Json;
-using System.IO;
-using System.ComponentModel;
 
 namespace MSA.Zmq.JsonRpc
 {
@@ -206,7 +205,7 @@ namespace MSA.Zmq.JsonRpc
                                     socket.SendMore(String.Empty, Encoding.UTF8);
                                     socket.SendMore(JsonConvert.SerializeObject(requestHeader), Encoding.UTF8);
                                     socket.Send(taskItem.CommandRequest, Encoding.UTF8);
-                                    var result = socket.Receive(Encoding.UTF8, TimeSpan.FromSeconds(DEF_CONNECTION_TIMEOUT));
+                                    var result = socket.Receive(Encoding.UTF8, TimeSpan.FromSeconds(DEF_CONNECTION_TIMEOUT)); // result is string
                                     taskItem.ResultProcessor(result);
                                 }
                                 else
@@ -251,7 +250,7 @@ namespace MSA.Zmq.JsonRpc
         {
             var result = default(T);
 
-            SendRequestAsync<JsonRpcResponse>((response) =>
+            SendRequest<JsonRpcResponse>((response) =>
             {
                 if (response.Error != null)
                 {

@@ -8,7 +8,7 @@ namespace MSA.Zmq.JsonRpc
 {
     public sealed class JsonRpcResponse
     {
-        public static string CreateJsonError(int id, int code, string message, string data)
+        public static JsonRpcResponse CreateJsonErrorResponse(int id, int code, string message, string data)
         {
             var error = new JsonRpcError();
             error.Code = code;
@@ -21,10 +21,15 @@ namespace MSA.Zmq.JsonRpc
             resp.Error = error;
             resp.Result = null;
 
+            return resp;
+        }
+
+        public static string CreateJsonError(int id, int code, string message, string data)
+        {
             var jsonSettings = new JsonSerializerSettings();
             jsonSettings.NullValueHandling = NullValueHandling.Ignore;
 
-            return JsonConvert.SerializeObject(resp, Formatting.Indented, jsonSettings);
+            return JsonConvert.SerializeObject(CreateJsonErrorResponse(id, code, message, data), Formatting.Indented, jsonSettings);
         }
 
         public static string CreateJsonResponse(int id, Object result)
