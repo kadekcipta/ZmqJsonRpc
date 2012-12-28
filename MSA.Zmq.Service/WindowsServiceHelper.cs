@@ -46,7 +46,7 @@ namespace MSA.Zmq.Service
             var process = new ServiceProcessInstaller();
             process.Account = ServiceAccount.LocalSystem;
             var service = new ServiceInstaller();
-            service.Description = "Magicsoft-Asia System Service Installer";
+            service.Description = "MSA ZmqJsonRpc Service Installer";
             service.DisplayName = "ZMQ JSON-RPC " + serviceName;
             service.ServiceName = serviceName;
             service.StartType = ServiceStartMode.Manual;
