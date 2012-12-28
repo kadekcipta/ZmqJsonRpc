@@ -36,6 +36,7 @@ namespace MSA.Zmq.JsonRpc
         const int DEF_CONNECTION_TIMEOUT = 5000; // in milliseconds
         const int MAX_CALL_QUEUE = 10000;
 
+        private IResultProcessor _resultProcessor;
         private uint _commandPort;
         private string _address;
         private string _userName;
@@ -66,6 +67,7 @@ namespace MSA.Zmq.JsonRpc
 
         private Client(string address, uint servicePort, string userName, string password, ClientMode mode)
         {
+            _resultProcessor = new JsonRpcResultProcessor();
             _random = new Random(1);
             _mode = mode;
             _queueProcessorThread = null;
@@ -125,10 +127,9 @@ namespace MSA.Zmq.JsonRpc
 
         public void CallMethodAsync<T>(string methodName, Action<T> callback, Action<MethodCallState> stateCallback, params object[] args)
         {
-
             var asyncOp = AsyncOperationManager.CreateOperation(methodName);
             OnMethodCallState(stateCallback, MethodCallState.Processing);
-            SendRequestAsync<JsonRpcResponse>((response) =>
+            SendRequestAsync((response) =>
             {
                 if (response.Error != null)
                 {
@@ -250,7 +251,7 @@ namespace MSA.Zmq.JsonRpc
         {
             var result = default(T);
 
-            SendRequest<JsonRpcResponse>((response) =>
+            SendRequest((response) =>
             {
                 if (response.Error != null)
                 {
@@ -268,7 +269,7 @@ namespace MSA.Zmq.JsonRpc
 
         public void CallMethod(string methodName, params object[] args)
         {
-            SendRequest<JsonRpcResponse>((response) =>
+            SendRequest((response) =>
             {
                 if (response.Error != null)
                 {
@@ -278,7 +279,7 @@ namespace MSA.Zmq.JsonRpc
             }, methodName, args);
         }
 
-        protected void SendRequest<T>(Action<T> callback, string methodName, params object[] args)
+        protected void SendRequest(Action<JsonRpcResponse> callback, string methodName, params object[] args)
         {
             if (_mode != ClientMode.Rpc)
                 throw new InvalidOperationException("Can only be called in Rpc mode");
@@ -310,16 +311,11 @@ namespace MSA.Zmq.JsonRpc
                     socket.SendMore(JsonConvert.SerializeObject(requestHeader), Encoding.UTF8);
                     socket.Send(commandRequest, Encoding.UTF8);
                     var result = socket.Receive(Encoding.UTF8, TimeSpan.FromSeconds(DEF_CONNECTION_TIMEOUT));
-                    if (callback != null)
+                    _resultProcessor.ProcessResult(result, (response) =>
                     {
-                        if (result != null)
-                            callback(JsonConvert.DeserializeObject<T>(result));
-                        else
-                        {
-                            result = JsonRpcResponse.CreateJsonError(-1, -1, "Connection is timeout", "");
-                            callback(JsonConvert.DeserializeObject<T>(result));
-                        }                        
-                    }
+                        if (callback != null)
+                            callback(response);
+                    });
                 }
                 catch (ZeroMQ.ZmqException ex)
                 {
@@ -328,7 +324,7 @@ namespace MSA.Zmq.JsonRpc
             }
         }
 
-        protected void SendRequestAsync<T>(Action<T> callback, string methodName, params object[] args)
+        protected void SendRequestAsync(Action<JsonRpcResponse> callback, string methodName, params object[] args)
         {
             if (_mode != ClientMode.Rpc)
                 throw new InvalidOperationException("Can only be called in Rpc mode");
@@ -341,19 +337,15 @@ namespace MSA.Zmq.JsonRpc
             };
 
             var commandRequest = JsonConvert.SerializeObject(request);
-            string result = null;
             var taskItem = new TaskItem()
             {
                 CommandRequest = commandRequest,
-                ResultProcessor = (res) =>
+                ResultProcessor = (result) =>
                 {
-                    if (res != null)
-                        callback(JsonConvert.DeserializeObject<T>(res));
-                    else
-                    {
-                        result = JsonRpcResponse.CreateJsonError(-1, -1, "Connection is timeout", "");
-                        callback(JsonConvert.DeserializeObject<T>(res));
-                    }
+                    _resultProcessor.ProcessResult(result, (response) => {
+                        if (callback != null)
+                            callback(response);
+                    });
                 }
             };
 

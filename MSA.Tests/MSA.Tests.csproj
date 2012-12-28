@@ -43,10 +43,17 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ClientTests.cs" />
+    <Compile Include="IUseFixture.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MSA.Zmq.JsonRpc\MSA.Zmq.JsonRpc.csproj">
+      <Project>{0a13246f-8df2-4c25-927c-08a64a1e1fa2}</Project>
+      <Name>MSA.Zmq.JsonRpc</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
