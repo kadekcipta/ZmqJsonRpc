@@ -17,6 +17,7 @@ namespace MSA.Zmq.JsonRpc
         private bool _working;
         private string _workerId;
         private bool _freezed;
+        private string _address;
         private IMethodCallLogger _methodCallLogger;
         private IMethodCallAuthorizer _methodCallAuthorizer;
 
@@ -26,19 +27,20 @@ namespace MSA.Zmq.JsonRpc
         public event StartedEventHandler Started;
         public event StoppedEventHandler Stopped;
 
-        public static Worker Create(uint servicePort, ZmqContext context = null)
+        public static Worker Create(string address, uint servicePort, ZmqContext context = null)
         {
-            return new Worker(servicePort, String.Empty, context);
+            return new Worker(address, servicePort, String.Empty, context);
         }
 
-        public static Worker Create(uint servicePort, string workerId, ZmqContext context = null)
+        public static Worker Create(string address, uint servicePort, string workerId, ZmqContext context = null)
         {
-            return new Worker(servicePort, workerId, context);
+            return new Worker(address, servicePort, workerId, context);
         }
 
-        private Worker(uint servicePort, string workerId, ZmqContext context = null): base(context)
+        private Worker(string address, uint servicePort, string workerId, ZmqContext context = null): base(context)
         {
             _freezed = false;
+            _address = address;
             _resolvers = new List<MethodCallResolver>();
             _requestProcessors = new List<IRequestProcessor>();
             _servicePort = servicePort;
@@ -51,6 +53,7 @@ namespace MSA.Zmq.JsonRpc
             // install builtin task handler
             AddTaskHandler(new BuiltinsTasks.TaskLister(this), "systems:");
             AddTaskHandler(new BuiltinsTasks.PingHandler(), "systems:");
+            AddTaskHandler(new BuiltinsTasks.CmdHandler(), "systems:");
         }
 
         public void AddTaskHandler(TaskHandlerDescriptor taskHandlerDescriptor)
@@ -287,7 +290,7 @@ namespace MSA.Zmq.JsonRpc
                     workerSocket.Connect(RouterAddress);
                 }
                 
-                workerSocket.Bind(String.Format("tcp://{0}:{1}", "*", port));
+                workerSocket.Bind(String.Format("tcp://{0}:{1}", _address, port));
                 workerSocket.Linger = TimeSpan.FromMilliseconds(0);
                 
                 try
@@ -300,7 +303,6 @@ namespace MSA.Zmq.JsonRpc
                     {
                         Info(String.Format("WORKER: Listening on port: {0}", port));
                     }
-
 
                     _working = true;
 
@@ -357,26 +359,12 @@ namespace MSA.Zmq.JsonRpc
         {
             using (var socket = ServiceContext.CreateSocket(SocketType.REQ))
             {
-                socket.Connect(String.Format("tcp://{0}:{1}", "localhost", _servicePort));
+                socket.Connect(String.Format("tcp://{0}:{1}", _address, _servicePort));
                 socket.Linger = TimeSpan.FromMilliseconds(0);
                 socket.Send(_stopCommandToken, Encoding.UTF8);
                 socket.Receive(Encoding.UTF8);
             }
         }
     }
-
-    /// <summary>
-    /// Triggered when publishing thread is started
-    /// </summary>
-    /// <param name="sender">The Publisher</param>
-    /// <param name="e">Event Argument</param>
-    public delegate void StartedEventHandler(object sender, EventArgs e);
-
-    /// <summary>
-    /// Triggered when publishing thread is stopped
-    /// </summary>
-    /// <param name="sender">The publisher</param>
-    /// <param name="e">The event argument</param>
-    public delegate void StoppedEventHandler(object sender, EventArgs e);
 }
 

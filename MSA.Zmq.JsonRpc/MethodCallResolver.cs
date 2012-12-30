@@ -47,7 +47,7 @@ namespace MSA.Zmq.JsonRpc
             return _methodAttributeCache[key];
         }
 
-        public string CallMethod(JsonRpcRequestHeader requestHeader,JsonRpcRequest request, Action<string> methodAuthorizer, Action methodLogger )
+        public string CallMethod(JsonRpcRequestHeader requestHeader, JsonRpcRequest request, Action<string> methodAuthorizer, Action methodLogger )
         {
             var responseJson = String.Empty;
             var authorizeMethodCall = false;
@@ -85,7 +85,6 @@ namespace MSA.Zmq.JsonRpc
                         authorizeMethodCall = attr.Authorize;
                         requiredRoles = attr.RequiredRoles;
 
-                        // 
                         var td = _taskDescriptors[request.Method];
                         td.LastInvokedBy = requestHeader.User;
                         td.LastInvoked = DateTime.UtcNow;

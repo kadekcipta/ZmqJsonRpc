@@ -65,20 +65,21 @@ namespace MSA.Zmq.JsonRpc
             return Connect(address, servicePort, String.Empty, String.Empty, mode);
         }
 
-        private Client(string address, uint servicePort, string userName, string password, ClientMode mode)
+        private Client(string address, uint servicePort, string userName, string password, ClientMode mode): base()
         {
             _resultProcessor = new JsonRpcResultProcessor();
             _random = new Random(1);
             _mode = mode;
             _queueProcessorThread = null;
             _queueLock = new Object();
-            _processingLock = new AutoResetEvent(true);
+            _processingLock = new AutoResetEvent(false);
             _callQueue = new Queue<TaskItem>();
             _queueProcessing = false;
             _address = address;
             _commandPort = servicePort;
             _userName = userName;
             _password = password;
+            ThrowsExceptionOnEmptyResult = false;
 
             if (String.IsNullOrEmpty(_userName) && String.IsNullOrEmpty(_password))
             {
@@ -98,6 +99,12 @@ namespace MSA.Zmq.JsonRpc
             {
                 _ipAddress = ips[0].ToString();
             }
+        }
+
+        public bool ThrowsExceptionOnEmptyResult
+        {
+            get;
+            set;
         }
 
         public void Push(string channel, string message)
@@ -170,6 +177,11 @@ namespace MSA.Zmq.JsonRpc
             }
         }
 
+        /// <summary>
+        /// This is just one way to process requests, it will somewhat locked for long running operation 
+        /// since it's based on single thread for queue processing.
+        /// We will examine one thread per request
+        /// </summary>
         private void EnsureQueueProcessorRunning()
         {
             if (_queueProcessorThread == null)
@@ -235,6 +247,7 @@ namespace MSA.Zmq.JsonRpc
 
         private void EnqueueTask(TaskItem taskItem)
         {
+            EnsureQueueProcessorRunning();
             lock (_queueLock)
             {
                 if (_callQueue.Count < MAX_CALL_QUEUE)
@@ -243,8 +256,6 @@ namespace MSA.Zmq.JsonRpc
                     _processingLock.Set();
                 }
             }
-
-            EnsureQueueProcessorRunning();
         }
 
         public T CallMethod<T>(string methodName, params object[] args)
@@ -373,7 +384,8 @@ namespace MSA.Zmq.JsonRpc
             }
             else
             {
-                throw ex;
+                if (ThrowsExceptionOnEmptyResult)
+                    throw ex;
             }
         }
     }

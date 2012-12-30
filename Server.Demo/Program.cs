@@ -39,7 +39,7 @@ namespace Server.Demo
     {
         static void Main(string[] args)
         {
-            using (var worker = Worker.Create(3001))
+            using (var worker = Worker.Create("127.0.0.1", 3001))
             {
                 worker.AddTaskHandler(new TaskHandlerDescriptor(typeof(SimpleTestHandler), null));
                 worker.Start();

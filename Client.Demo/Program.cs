@@ -12,50 +12,68 @@ namespace Client.Demo
     {
         static void Main(string[] args)
         {
-            using (var client = MSA.Zmq.JsonRpc.Client.Connect("localhost", 3001, ClientMode.Rpc))
+            using (var client = MSA.Zmq.JsonRpc.Client.Connect("127.0.0.1", 3001, ClientMode.Rpc))
             {
-                var n = 100;
-                var counter = 0;
-                var sw = Stopwatch.StartNew();
-                for (var x = 0; x < n; x++)
-                {
-                    //var result = client.CallMethod<double>("AddNumber", x, x*2);
-                    client.CallMethodAsync<double>("AddNumber", (ret) => 
-                    {
-                        //Console.WriteLine("Calling AddNumber: {0}", ret);
-                        if (counter >= n -1)
-                        {
-                            sw.Stop();
-                            var d = (n * 1000.0) / sw.ElapsedMilliseconds;
-                            Console.WriteLine("Elapsed: {0} ms = {1} in seconds", sw.ElapsedMilliseconds, Math.Round(d));
-                        }
+                //var n = 100;
+                //var counter = 0;
+                //var sw = Stopwatch.StartNew();
+                //for (var x = 0; x < n; x++)
+                //{
+                //    //var result = client.CallMethod<double>("AddNumber", x, x*2);
+                //    client.CallMethodAsync<double>("AddNumber", (ret) =>
+                //    {
+                //        //Console.WriteLine("Calling AddNumber: {0}", ret);
+                //        if (counter >= n - 1)
+                //        {
+                //            sw.Stop();
+                //            var d = (n * 1000.0) / sw.ElapsedMilliseconds;
+                //            Console.WriteLine("Elapsed: {0} ms = {1} in seconds", sw.ElapsedMilliseconds, Math.Round(d));
+                //        }
 
-                        counter++;
-                    }, x, x * 2);
-                }
+                //        counter++;
+                //    }, x, x * 2);
+                //}
 
 
-                client.CallMethodAsync("Dumb", "This is a void returned method ");
-                client.CallMethodAsync<string>("Echo", (ret) =>
-                {
-                    Console.WriteLine("Calling Echo: {0}", ret);
-                }, "Hello ZMQ JSON-RPC");
+                //client.CallMethodAsync("Dumb", "This is a void returned method ");
+                //client.CallMethodAsync<string>("Echo", (ret) =>
+                //{
+                //    Console.WriteLine("Calling Echo: {0}", ret);
+                //}, "Hello ZMQ JSON-RPC");
 
-                client.CallMethodAsync<DateTime>("EchoDate", (ret) => {
-                    Console.WriteLine(ret);
-                }, DateTime.Now);
+                //client.CallMethodAsync<DateTime>("EchoDate", (ret) =>
+                //{
+                //    Console.WriteLine(ret);
+                //}, DateTime.Now);
 
                 //var ed = client.CallMethod<DateTime>("EchoDate", DateTime.Now);
                 //Console.WriteLine(ed);
 
-                client.CallMethodAsync<IList<MSA.Zmq.JsonRpc.Models.TaskDescriptor>>("systems:GetAvailableTasks", (list) => {
-                    foreach (var task in list)
-                    {
-                        Console.WriteLine(task.Name);
-                    }
-                });
+                //client.CallMethodAsync<IList<MSA.Zmq.JsonRpc.Models.TaskDescriptor>>("systems:GetAvailableTasks", (list) =>
+                //{
+                //    foreach (var task in list)
+                //    {
+                //        Console.WriteLine(task.Name);
+                //    }
+                //});
 
-                Console.ReadLine();
+                var cmd = "";
+                do
+                {
+                    Console.Write("\nYour command: ");
+                    cmd = Console.ReadLine();
+                    if (!String.IsNullOrEmpty(cmd))
+                    {
+                        client.CallMethodAsync<string>("systems:Cmd", (o) =>
+                        {
+                            Console.WriteLine(o);
+                            Console.Write("\nYour command: ");
+                        }, cmd);
+                    }
+                }
+                while (cmd != "exit");
+
+                //Console.ReadLine();
             }
         }
     }

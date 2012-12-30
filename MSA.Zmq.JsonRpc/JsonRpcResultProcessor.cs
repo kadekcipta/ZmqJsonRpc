@@ -11,17 +11,26 @@ namespace MSA.Zmq.JsonRpc
         public void ProcessResult(string result, Action<JsonRpcResponse> callback)
         {
             JsonRpcResponse ret = null;
-            if (!String.IsNullOrEmpty(result))
-                ret = JsonConvert.DeserializeObject<JsonRpcResponse>(result);
-            else
-            {
-                var jsonResult = JsonRpcResponse.CreateJsonError(-1, -1, "Returned empty result", "");
-                ret = JsonConvert.DeserializeObject<JsonRpcResponse>(jsonResult);
-            }
 
-            if (String.IsNullOrEmpty(ret.JsonRpc) || ret.JsonRpc != "2.0")
+            try
             {
-                ret = JsonConvert.DeserializeObject<JsonRpcResponse>(JsonRpcResponse.CreateJsonError(-1, -32600, "Invalid RPC response", ""));
+                if (!String.IsNullOrEmpty(result))
+                    ret = JsonConvert.DeserializeObject<JsonRpcResponse>(result);
+                else
+                {
+                    var jsonResult = JsonRpcResponse.CreateJsonError(-1, -1, "Returned empty result", "");
+                    ret = JsonConvert.DeserializeObject<JsonRpcResponse>(jsonResult);
+                }
+
+                if (String.IsNullOrEmpty(ret.JsonRpc) || ret.JsonRpc != "2.0")
+                {
+                    ret = JsonConvert.DeserializeObject<JsonRpcResponse>(JsonRpcResponse.CreateJsonError(-1, -32600, "Invalid RPC response", ""));
+                }
+            }
+            catch (Exception ex)
+            {
+                // in case returned string cannot be deserialized
+                ret = JsonConvert.DeserializeObject<JsonRpcResponse>(JsonRpcResponse.CreateJsonError(-1, -32600, ex.Message, ""));
             }
 
             if (callback != null)

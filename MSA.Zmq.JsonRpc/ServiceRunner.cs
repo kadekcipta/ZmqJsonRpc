@@ -9,6 +9,14 @@ using System.IO;
 
 namespace MSA.Zmq.JsonRpc
 {
+    public enum ServerMode
+    {
+        Worker,
+        MultiWorker,
+        Router,
+        Publisher
+    }
+
     public sealed class ServiceRunner : IDisposable
     {
         private ZmqContext _context;
@@ -36,56 +44,48 @@ namespace MSA.Zmq.JsonRpc
         private void InitializeServices()
         {
             DestroyServices();
-
-            if (Options.IsValid)
+            switch (Options.Mode)
             {
-                if (Options.Mode == ServiceType.Router)
-                {
-                    var router = Router.Create(Options.Ports[1], Options.Ports[0], _context);
-                    _services.Add(router);
-                }
-                else
-                {
-                    // Check wether run as worker group or single worker by differentiating with router value
-                    if (String.IsNullOrEmpty(Options.Router))
+                case ServiceMode.Worker:
+                case ServiceMode.MultiWorker:
+                    // create single worker with binding port on first ports list
+                    if (Options.Mode == ServiceMode.Worker)
                     {
-                        // Single worker
-                        var worker = Worker.Create(Options.Ports[0], _context);
+                        var worker = Worker.Create(Options.HostName, Options.Ports[0], _context);
                         foreach (var ht in _handlerDescriptors)
-                        {
                             worker.AddTaskHandler(ht);
-                        }
-
                         _services.Add(worker);
                     }
                     else
                     {
-                        // Worker group
+                        // create multi worker with binding port on ports list
                         var workerId = 1;
                         foreach (var port in Options.Ports)
                         {
-                            var worker = Worker.Create(port, workerId.ToString(), _context);
+                            var worker = Worker.Create(Options.HostName, port, workerId.ToString(), _context);
                             worker.RouterAddress = Options.Router;
                             foreach (var ht in _handlerDescriptors)
                             {
                                 worker.AddTaskHandler(ht);
                             }
-
                             _services.Add(worker);
                             workerId++;
                         }
                     }
-                }
-            }
-            else
-            {
-                Print(String.Format(GetHelp(), System.IO.Path.GetFileName(Environment.GetCommandLineArgs()[0])));
+                    break;
+                case ServiceMode.Publisher:
+                    // TODO: Publisher implementation
+                    break;
+                case ServiceMode.Router:
+                    // TODO: Router implementation
+                    break;
             }
         }
 
         private void Print(string message)
         {
-            Console.WriteLine(message);
+            if (Environment.UserInteractive)
+                Console.WriteLine(message);
         }
 
         private void Info(string message)
@@ -162,49 +162,61 @@ namespace MSA.Zmq.JsonRpc
             }
         }
 
+        /// <summary>
+        /// Format: --mode=<MODE>:<HOST>:<COMMA-SEPARATED-PORT-LIST>:[<ROUTER-URL>]
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
         private void HandleOption(string key, string value)
         {
-            switch (key)
+            if (key.Equals("MODE", StringComparison.OrdinalIgnoreCase) && !String.IsNullOrEmpty(value))
             {
-                case "HELP":
-                    Options.WindowsServiceAction = ServiceAction.Help;
-                    break;
-                case "ROUTER":
-                    // --router=<backend-port>:<frontend-port>
-                    Options.Mode = ServiceType.Router;
-                    Options.Ports = value.Split(':').Select(s => Convert.ToUInt32(s.Trim())).ToArray();
-                    Options.Router = "*"; // local box, not used here since the router will automatically bind to local default interface
-                    break;
+                var values = value.Split(':').Where(s => !String.IsNullOrEmpty(s)).Select(s => s.Trim()).ToList();
+                if (values.Count >= 3)
+                {
+                    var modeValue = values[0];
+                    var host = values[1];
+                    var ports = values[2].Split(',').Where(s => !String.IsNullOrEmpty(s)).Select<string, uint>(s => Convert.ToUInt32(s)).ToArray();
+                    var routerUrl = String.Empty;
+                    if (values.Count >= 4)
+                        routerUrl = values[3];
 
-                case "WORKER-GROUP":
-                    Options.Mode = ServiceType.Worker;
-                    // --worker-group=<router-url>#<port-list>
-                    var parts = value.Split('#');
-                    Options.Router = parts[0].Trim();
-                    Options.Ports = parts[1].Split(',').Select(s => Convert.ToUInt32(s.Trim())).ToArray();
-                    break;
+                    Options.HostName = host.Trim();
+                    Options.Ports = ports;
+                    Options.Router = routerUrl;
 
-                case "WORKER":
-                    // --worker=<port>
-                    Options.Mode = ServiceType.Worker;
-                    Options.Router = String.Empty;
-                    Options.Ports = new uint[] { Convert.ToUInt32(value) };
-                    break;
-
-                case "INSTALL":
-                    Options.WindowsServiceAction = ServiceAction.Install;
-                    break;
-
-                case "RUNSERVICE":
-                    Options.WindowsServiceAction = ServiceAction.Run;
-                    break;
-
-                case "UNINSTALL":
-                    Options.WindowsServiceAction = ServiceAction.Uninstall;
-                    break;
+                    switch (modeValue)
+                    {
+                        case "ROUTER":
+                            Options.Mode = ServiceMode.Router;
+                            break;
+                        case "WORKER":
+                            Options.Mode = ServiceMode.Worker;
+                            break;
+                        case "MULTI-WORKER":
+                            Options.Mode = ServiceMode.MultiWorker;
+                            break;
+                        case "PUBLISHER":
+                            Options.Mode = ServiceMode.Publisher;
+                            break;
+                    }
+                }
+            }
+            else if (key.Equals("INSTALL-SERVICE", StringComparison.OrdinalIgnoreCase))
+            {
+                Options.ServiceAction = ServiceAction.Install;
+                Options.ServiceName = value.Trim().Replace(" ", "");
+            }
+            else if (key.Equals("RUN-SERVICE", StringComparison.OrdinalIgnoreCase))
+            {
+                Options.ServiceAction = ServiceAction.Run;
+            }
+            else if (key.Equals("HELP", StringComparison.OrdinalIgnoreCase))
+            {
+                Options.ServiceAction = ServiceAction.Help;
             }
 
-            Options.RunConsole = Options.WindowsServiceAction == ServiceAction.None;
+            Options.RunConsole = Options.ServiceAction == ServiceAction.None;
         }
 
         public string GetHelp()

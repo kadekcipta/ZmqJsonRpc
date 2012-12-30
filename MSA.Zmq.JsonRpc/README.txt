@@ -1,50 +1,65 @@
 ﻿
-Magicsoft-Asia Systems JSON-RPC ZMQ Service 2012 (Alpha)
-===============================================
+DESCRIPTION
 
-Parameters:
+JSON-RPC ZMQ Service utility (experimental)
 
-	--router=<backend-port>:<frontend-port>
-	
-	This will start service as a router that listen on <backend-port> 
-	and <frontend-port>
-	
-	<backend-port>: the port that every worker will connect to
-	
-	<frontend-port>: the port that every clients will connect to, 
-	it will act as a routing device hence the name router
-	
+Mandatory arguments:
 
-	--worker-group=<router-url>#<worker-ports-list>
-	
-	This will configure service that will start number of workers 
-	based on comma separated value in <worker-ports-list>
-	<router-url>: valid zeromq node format: e.q tcp://hostname:port
-	
-	--worker=<port>
-	
-	This will start the service as a single worker with specified port
-	
-	<worker-ports-list>: comma separated value : e.g 3003,3004
-	
-	--install
-	This parameter if combined with --router and --worker, 
-	will install the the Windows service with service name:
-	
-	ZMSA.Router (for router) or ZMSA.Worker (for worker)
-	
-	--help
-	Display this information
-	
-Usages:
-	
-	> {0} --router=3000:3001							
-	> {0} --router=3000:3001 --install					
-	> {0} --worker=3001
-	> {0} --worker-group=tcp://localhost:3000#3004,3005
-	> {0} --worker-group=tcp://localhost:3000#3004,3005 --install
+--mode=<WORKER|MULTI-WORKER|PUBLISHER|ROUTER>
+           :<host>
+           :<port|comma-separated-port-list>
+           [:<router-url>]
 
+  Sets the operating mode of the service
 
-
+  WORKER    Starts single worker and bind to <port>
 	
-Author: kadekcipta@magicsoft-asia.com	- Feb 2012
+  Usages:
+
+  > {0} --mode=WORKER:localhost:3001
+
+  This command will start single worker and bind to port 3001
+
+  MULTI-WORKER  Starts multiple worker in the same process
+	
+  Usages:
+
+  > {0} --mode=MULTI-WORKER:localhost:3001,3002:tcp://remotehost:5000
+
+  This command will start workers 
+  and each one bind to port 3001 and 3002 and
+  connect to router's backend (dealer port) port 5000 running on remotehost.
+
+  PUBLISHER  Starts publisher and pull service (not available yet).
+
+  Usages:
+
+  > {0} --mode=PUBLISHER:localhost:3001,3002
+	
+  This command will start publisher service 
+  on port 3001 and pull service on 3002. 
+  Client that need to push message have to 
+  connect to pull service on 3002.
+
+  ROUTER  Starts router and dealer service (not available yet).
+
+  Usages:
+
+  > {0} --mode=ROUTER:localhost:3001,3002
+	
+  This command will start router that bind 
+  to front-end port 3001 and backend port 3002.
+
+--install-server=<service-name>
+  Installs a service for certain operating mode
+
+  Usages:
+
+  > {0} --mode=WORKER:localhost:3001 --install-service=worker1
+  > {0} --mode=MULTI-WORKER:localhost:3001,3002:tcp://myservice:5000 --install-service=workergroup1
+
+--help
+  Display this information
+
+AUTHOR
+  cipta (kadekcipta@gmail.com) - Feb 2012

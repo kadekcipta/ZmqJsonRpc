@@ -30,7 +30,7 @@ namespace MSA.Publisher.Tester
     {
         static void Main(string[] args)
         {
-            using (var worker = Worker.Create(3001))
+            using (var worker = Worker.Create("192.168.2.2", 3001))
             {
                 worker.AddTaskHandler(new TaskHandlerDescriptor(typeof(CommonLookup), null));
 //                worker.AddTaskHandler(new TaskHandlerDescriptor(typeof(PatientLookup), "patients:"));
