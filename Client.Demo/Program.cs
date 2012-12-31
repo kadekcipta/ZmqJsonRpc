@@ -12,8 +12,13 @@ namespace Client.Demo
     {
         static void Main(string[] args)
         {
-            using (var client = MSA.Zmq.JsonRpc.Client.Connect("127.0.0.1", 3001, ClientMode.Rpc))
+            using (var client = MSA.Zmq.JsonRpc.Client.CreatePushContext("tcp://127.0.0.1:3002"))
+            using (var sub = MSA.Zmq.JsonRpc.Client.CreateSubscriberContext("tcp://127.0.0.1:3001"))
             {
+                sub.Subscribe("update", (s) => {
+                    Console.WriteLine(s);
+                });
+
                 //var n = 100;
                 //var counter = 0;
                 //var sw = Stopwatch.StartNew();
@@ -62,18 +67,17 @@ namespace Client.Demo
                 {
                     Console.Write("\nYour command: ");
                     cmd = Console.ReadLine();
-                    if (!String.IsNullOrEmpty(cmd))
+                    if (!String.IsNullOrEmpty(cmd) && !cmd.Equals("exit", StringComparison.OrdinalIgnoreCase))
                     {
-                        client.CallMethodAsync<string>("systems:Cmd", (o) =>
-                        {
-                            Console.WriteLine(o);
-                            Console.Write("\nYour command: ");
-                        }, cmd);
+                        client.Push("update", cmd);
+                        //client.CallMethodAsync<string>("systems:Cmd", (o) =>
+                        //{
+                        //    Console.WriteLine(o);
+                        //    Console.Write("\nYour command: ");
+                        //}, cmd);
                     }
                 }
                 while (cmd != "exit");
-
-                //Console.ReadLine();
             }
         }
     }

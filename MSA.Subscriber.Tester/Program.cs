@@ -9,7 +9,7 @@ namespace MSA.Subscriber.Tester
 {
     static class Program
     {
-        public static Client _client;
+        public static JsonRpcClient _client;
 
         /// <summary>
         /// The main entry point for the application.
@@ -17,7 +17,8 @@ namespace MSA.Subscriber.Tester
         [STAThread]
         static void Main()
         {
-            _client = Client.Connect("localhost", 3001, ClientMode.Rpc);
+            //_client = Client.Connect("localhost", 3001, ClientMode.Rpc);
+            _client = Client.CreateJsonRpcContext("tcp://127.0.0.1:3001");
             _client.ServiceError += new ErrorEventHandler(_client_ServiceError);
             var resp = _client.CallMethod<IList<TaskDescriptor>>("systems:GetAvailableTasks");
             if (resp != null)

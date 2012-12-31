@@ -19,7 +19,7 @@ namespace MSA.Subscriber.Tester
             InitializeComponent();
         }
 
-        public Client Client { get; set; }
+        public JsonRpcClient Client { get; set; }
 
         private void button1_Click(object sender, EventArgs e)
         {

@@ -14,7 +14,7 @@ namespace MSA.Subscriber.Tester
 {
     public partial class MainForm : Form
     {
-        private Client _client;
+        private JsonRpcClient _client;
         private BindingSource _bsICD;
         private SearchCommander _commander;
 

@@ -15,11 +15,86 @@ namespace MSA.Zmq.JsonRpc
         Success = 1
     }
 
-    public enum ClientMode
+    internal class ContextManager
     {
-        Rpc,
-        Push,
-        Subscriber
+        private static ZmqContext _context;
+        private static int _refCount;
+
+        static ContextManager()
+        {
+            _refCount = 0;
+        }
+
+        public static ZmqContext GetContext()
+        {
+            if (_context == null)
+            {
+                _context = ZmqContext.Create();
+            }
+
+            ++_refCount;
+
+            return _context;
+        }
+
+        public static void ReleaseContext()
+        {
+            if (_refCount > 0 && --_refCount == 0)
+            {
+                _context.Dispose();
+                _context = null;
+            }
+        }
+    }
+
+    public class ClientBase : IDisposable
+    {
+        private bool _disposed;
+        public ClientBase()
+        {
+            _disposed = false;
+            Context = ContextManager.GetContext();
+        }
+
+        ~ClientBase()
+        {
+            Dispose();
+        }
+
+        public ZmqContext Context
+        {
+            get;
+            private set;
+        }
+
+        protected virtual void Destroy()
+        {
+        }
+
+        protected void Info(string message)
+        {
+            Logger.Instance.Info(message);
+        }
+
+        protected void LogError(System.Exception ex)
+        {
+            Logger.Instance.Error(ex);
+        }
+
+        protected void Debug(string message)
+        {
+            Logger.Instance.Debug(message);
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                Destroy();
+                ContextManager.ReleaseContext();
+                _disposed = true;
+            }
+        }
     }
 
     public delegate void ErrorEventHandler(object sender, JsonRpcException ex);
@@ -31,14 +106,35 @@ namespace MSA.Zmq.JsonRpc
         public Action<string> ResultProcessor { get; set; }
     }
 
-    public class Client : JsonRpcZmqServiceBase
+    public static class Client
+    { 
+        public static JsonRpcClient CreateJsonRpcContext(string userName, string password, params string[] serviceEndPoints)
+        {
+            return new JsonRpcClient(userName, password, serviceEndPoints);
+        }
+
+        public static JsonRpcClient CreateJsonRpcContext(params string[] serviceEndPoints)
+        {
+            return new JsonRpcClient(String.Empty, String.Empty, serviceEndPoints);
+        }
+
+        public static SubscriberClient CreateSubscriberContext(string serviceEndPoint)
+        {
+            return new SubscriberClient(serviceEndPoint);
+        }
+
+        public static PushClient CreatePushContext(string serviceEndPoint)
+        {
+            return new PushClient(serviceEndPoint);
+        }
+    }
+
+    public sealed class JsonRpcClient: ClientBase
     {
         const int DEF_CONNECTION_TIMEOUT = 5000; // in milliseconds
         const int MAX_CALL_QUEUE = 10000;
 
         private IResultProcessor _resultProcessor;
-        private uint _commandPort;
-        private string _address;
         private string _userName;
         private string _password;
         private string _ipAddress;
@@ -49,34 +145,23 @@ namespace MSA.Zmq.JsonRpc
         private Thread _queueProcessorThread;
         private bool _queueProcessing;
         private AutoResetEvent _processingLock;
-        private ClientMode _mode;
         private Random _random;
+        private string[] _serviceEndPoints;
 
         public event ErrorEventHandler ServiceError;
         public event BeforeSendRequestHandler BeforeSendRequest;
 
-        public static Client Connect(string address, uint servicePort, string userName, string password, ClientMode mode)
+        internal JsonRpcClient(params string[] serviceEndPoints): this(String.Empty, String.Empty, serviceEndPoints) {}
+        internal JsonRpcClient(string userName, string password, params string[] serviceEndPoints): base()
         {
-            return new Client(address, servicePort, userName, password, mode);
-        }
-
-        public static Client Connect(string address, uint servicePort, ClientMode mode)
-        {
-            return Connect(address, servicePort, String.Empty, String.Empty, mode);
-        }
-
-        private Client(string address, uint servicePort, string userName, string password, ClientMode mode): base()
-        {
+            _serviceEndPoints = serviceEndPoints;
             _resultProcessor = new JsonRpcResultProcessor();
             _random = new Random(1);
-            _mode = mode;
             _queueProcessorThread = null;
             _queueLock = new Object();
             _processingLock = new AutoResetEvent(false);
             _callQueue = new Queue<TaskItem>();
             _queueProcessing = false;
-            _address = address;
-            _commandPort = servicePort;
             _userName = userName;
             _password = password;
             ThrowsExceptionOnEmptyResult = false;
@@ -105,16 +190,6 @@ namespace MSA.Zmq.JsonRpc
         {
             get;
             set;
-        }
-
-        public void Push(string channel, string message)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Subscribe(string channel, Action<string> callback)
-        {
-            throw new NotImplementedException();
         }
 
         public void CallMethodAsync(string methodName, params object[] args)
@@ -158,7 +233,7 @@ namespace MSA.Zmq.JsonRpc
             }, methodName, args);
         }
 
-        public override void Stop()
+        protected override void Destroy()
         {
             _queueProcessing = false;
             _processingLock.Set();
@@ -184,15 +259,20 @@ namespace MSA.Zmq.JsonRpc
         /// </summary>
         private void EnsureQueueProcessorRunning()
         {
+            if (Context == null)
+                return;
+
             if (_queueProcessorThread == null)
             {
                 _queueProcessing = true;
-                _queueProcessorThread = new Thread(new ThreadStart(() => {
+                _queueProcessorThread = new Thread(new ThreadStart(() =>
+                {
                     string response = String.Empty;
-                    using (ZmqSocket socket = ServiceContext.CreateSocket(SocketType.REQ))
+                    using (ZmqSocket socket = Context.CreateSocket(SocketType.REQ))
                     {
                         socket.Linger = TimeSpan.FromSeconds(0);
-                        socket.Connect(String.Format("tcp://{0}:{1}", this._address, this._commandPort));
+                        foreach (var endPoint in _serviceEndPoints)
+                            socket.Connect(endPoint);
 
                         try
                         {
@@ -226,7 +306,7 @@ namespace MSA.Zmq.JsonRpc
                                     _processingLock.WaitOne();
                                 }
                             }
-                            
+
                             _queueProcessorThread = null;
                         }
                         catch (ZeroMQ.ZmqException ex)
@@ -290,11 +370,8 @@ namespace MSA.Zmq.JsonRpc
             }, methodName, args);
         }
 
-        protected void SendRequest(Action<JsonRpcResponse> callback, string methodName, params object[] args)
+        private void SendRequest(Action<JsonRpcResponse> callback, string methodName, params object[] args)
         {
-            if (_mode != ClientMode.Rpc)
-                throw new InvalidOperationException("Can only be called in Rpc mode");
-
             var request = new JsonRpcRequest()
             {
                 Id = 1,
@@ -304,10 +381,11 @@ namespace MSA.Zmq.JsonRpc
 
             var commandRequest = JsonConvert.SerializeObject(request);
 
-            using (ZmqSocket socket = ServiceContext.CreateSocket(SocketType.REQ))
+            using (ZmqSocket socket = Context.CreateSocket(SocketType.REQ))
             {
                 socket.Linger = TimeSpan.FromSeconds(0);
-                socket.Connect(String.Format("tcp://{0}:{1}", this._address, this._commandPort));
+                foreach (var endPoint in _serviceEndPoints)
+                    socket.Connect(endPoint);
 
                 try
                 {
@@ -335,11 +413,8 @@ namespace MSA.Zmq.JsonRpc
             }
         }
 
-        protected void SendRequestAsync(Action<JsonRpcResponse> callback, string methodName, params object[] args)
+        private void SendRequestAsync(Action<JsonRpcResponse> callback, string methodName, params object[] args)
         {
-            if (_mode != ClientMode.Rpc)
-                throw new InvalidOperationException("Can only be called in Rpc mode");
-
             var request = new JsonRpcRequest()
             {
                 Id = _random.Next(1, MAX_CALL_QUEUE),
@@ -353,7 +428,8 @@ namespace MSA.Zmq.JsonRpc
                 CommandRequest = commandRequest,
                 ResultProcessor = (result) =>
                 {
-                    _resultProcessor.ProcessResult(result, (response) => {
+                    _resultProcessor.ProcessResult(result, (response) =>
+                    {
                         if (callback != null)
                             callback(response);
                     });
@@ -387,6 +463,130 @@ namespace MSA.Zmq.JsonRpc
                 if (ThrowsExceptionOnEmptyResult)
                     throw ex;
             }
+        }
+    }
+
+    public sealed class PushClient : ClientBase
+    {
+        private string _serviceEndPoint;
+        private Thread _pushThread;
+        private bool _pushing;
+        private object _queueLock;
+        private Queue<string> _messageQueue;
+
+        internal PushClient(string serviceEndPoint)
+        {
+            _queueLock = new object();
+            _messageQueue = new Queue<string>();
+            _serviceEndPoint = serviceEndPoint;
+        }
+
+        protected override void Destroy()
+        {
+            _pushing = false;
+        }
+
+        private void EnsurePushThreadRunning()
+        {
+            if (_pushThread == null)
+            {
+                _pushThread = new Thread(new ThreadStart(() => {
+                    _pushing = true;
+                    using (var socket = Context.CreateSocket(SocketType.PUSH))
+                    {
+                        socket.Linger = TimeSpan.FromMilliseconds(0);
+                        socket.SendHighWatermark = 100;
+                        socket.Connect(_serviceEndPoint);
+
+                        while (_pushing)
+                        {
+                            lock (_queueLock)
+                            {
+                                if (_messageQueue.Count > 0)
+                                {
+                                    socket.Send(_messageQueue.Dequeue(), Encoding.UTF8);
+                                }
+                            }
+                        }
+
+                        _pushThread = null;
+                    }
+                }));
+
+                _pushThread.IsBackground = true;
+                _pushThread.Start();
+            }
+        }
+
+        public void Push(string prefix, string message)
+        {
+            lock (_queueLock)
+            {
+                _messageQueue.Enqueue(prefix + message);
+            }
+
+            EnsurePushThreadRunning();
+        }
+    }
+
+    public sealed class SubscriberClient : ClientBase
+    {
+        private string _serviceEndPoint;
+        private bool _receiving;
+
+        internal SubscriberClient(string serviceEndPoint)
+        {
+            _receiving = true;
+            _serviceEndPoint = serviceEndPoint;
+        }
+
+        protected override void Destroy()
+        {
+            _receiving = false;
+        }
+
+        private void DoThreadSafeCallback(AsyncOperation asyncOp, string message, Action<string> callback)
+        {
+            if (asyncOp != null)
+            {
+                asyncOp.Post((state) => callback((string)state), message);
+            }
+            else
+            {
+                callback(message);
+            }
+        }
+
+        private void HandleSubscription(AsyncOperation asyncOp, string prefix, Action<string> callback)
+        {
+            using (var socket = Context.CreateSocket(SocketType.SUB))
+            {
+                var prefixData = Encoding.UTF8.GetBytes(prefix);
+                socket.Subscribe(prefixData);
+                socket.Connect(_serviceEndPoint);
+                while (_receiving)
+                {
+                    var message = socket.Receive(Encoding.UTF8);
+                    if (!String.IsNullOrEmpty(message) && callback != null)
+                    {
+                        message = message.Remove(0, prefix.Length);
+                        DoThreadSafeCallback(asyncOp, message, callback);
+                    }
+                }
+            }
+        }
+
+        private void CreateSubscriptionThread(AsyncOperation asyncOp, string prefix, Action<string> callback)
+        {
+            ThreadPool.QueueUserWorkItem(obj => {
+                HandleSubscription(asyncOp, prefix, callback);
+            });
+        }
+
+        public void Subscribe(string prefix, Action<string> callback)
+        {
+            var asyncOp = AsyncOperationManager.CreateOperation(null);
+            CreateSubscriptionThread(asyncOp, prefix, callback);
         }
     }
 }

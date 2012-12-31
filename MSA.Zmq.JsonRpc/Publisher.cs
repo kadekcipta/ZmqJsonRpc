@@ -72,22 +72,25 @@ namespace MSA.Zmq.JsonRpc
 
         private void StartHandleRequest()
         {
-            using (ZmqSocket pubSocket = ServiceContext.CreateSocket(SocketType.REP))
-            using (ZmqSocket pullSocket = ServiceContext.CreateSocket(SocketType.PULL))
+            using (ZmqSocket pubSocket = ServiceContext.CreateSocket(SocketType.PUB),
+                             pullSocket = ServiceContext.CreateSocket(SocketType.PULL))
             {
                 pubSocket.Bind(String.Format("tcp://{0}:{1}", _address, _pubPort));
                 pubSocket.Linger = TimeSpan.FromMilliseconds(0);
+                pubSocket.SendHighWatermark = 100;
                 
                 pullSocket.Bind(String.Format("tcp://{0}:{1}", _address, _pullPort));
                 pullSocket.Linger = TimeSpan.FromMilliseconds(0);
-                
+
+                Info(String.Format("PUBLISHER: PUB port: {0} PULL port: {1}", _pubPort, _pullPort));
+
                 try
                 {
                     _working = true;
 
                     while (_working)
                     {
-                        var message = pullSocket.Receive(Encoding.UTF8);
+                        var message = pullSocket.Receive(Encoding.UTF8, TimeSpan.FromMilliseconds(3000));
                         _working = !_stopCommandToken.Equals(message, StringComparison.OrdinalIgnoreCase);
                         if (!_working)
                         {
@@ -95,9 +98,12 @@ namespace MSA.Zmq.JsonRpc
                         }
                         else if (!String.IsNullOrEmpty(message))
                         {
+                            Info(message);
                             pubSocket.Send(message, Encoding.UTF8);
                         }
                     }
+
+                    Info("PUBLISHER: Terminated");
                 }
                 catch (ZeroMQ.ZmqException ex)
                 {
@@ -114,11 +120,14 @@ namespace MSA.Zmq.JsonRpc
 
         public override void Stop()
         {
-            using (var socket = ServiceContext.CreateSocket(SocketType.PUSH))
+            if (_working)
             {
-                socket.Connect(String.Format("tcp://{0}:{1}", _address, _pullPort));
-                socket.Linger = TimeSpan.FromMilliseconds(0);
-                socket.Send(_stopCommandToken, Encoding.UTF8);
+                using (var socket = ServiceContext.CreateSocket(SocketType.PUSH))
+                {
+                    socket.Connect(String.Format("tcp://{0}:{1}", _address, _pullPort));
+                    socket.Linger = TimeSpan.FromMilliseconds(0);
+                    socket.Send(_stopCommandToken, Encoding.UTF8, TimeSpan.FromSeconds(1));
+                }
             }
         }
     }

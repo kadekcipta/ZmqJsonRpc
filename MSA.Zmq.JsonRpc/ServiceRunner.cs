@@ -74,7 +74,8 @@ namespace MSA.Zmq.JsonRpc
                     }
                     break;
                 case ServiceMode.Publisher:
-                    // TODO: Publisher implementation
+                    var publisher = Publisher.Create(Options.HostName, Options.Ports[0], Options.Ports[1], _context);
+                    _services.Add(publisher);
                     break;
                 case ServiceMode.Router:
                     // TODO: Router implementation
