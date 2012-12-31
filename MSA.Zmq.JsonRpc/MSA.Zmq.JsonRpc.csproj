@@ -110,12 +110,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BuiltinsTasks\CmdHandler.cs" />
     <Compile Include="BuiltinsTasks\PingHandler.cs" />
     <Compile Include="BuiltinsTasks\TaskLister.cs" />
+    <Compile Include="Delegates.cs" />
+    <Compile Include="Publisher.cs" />
     <Compile Include="IHandlerFactory.cs" />
     <Compile Include="IMethodCallAuthorizer.cs" />
     <Compile Include="IMethodCallLogger.cs" />
     <Compile Include="IRequestProcessor.cs" />
+    <Compile Include="IResultProcessor.cs" />
+    <Compile Include="JsonRpcResultProcessor.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Models\TaskDescriptor.cs" />
     <Compile Include="Router.cs" />

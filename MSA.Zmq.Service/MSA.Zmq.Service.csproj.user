@@ -11,6 +11,6 @@
     <VerifyUploadedFiles>false</VerifyUploadedFiles>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
-    <StartArguments>--worker-group=tcp://localhost:3000#3005,3006</StartArguments>
+    <StartArguments>--mode=WORKER:localhost:3001</StartArguments>
   </PropertyGroup>
 </Project>

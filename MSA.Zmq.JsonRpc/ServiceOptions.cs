@@ -5,42 +5,42 @@ using System.Text;
 
 namespace MSA.Zmq.JsonRpc
 {
-    public enum ServiceType { Router, Worker }
-    public enum ServiceAction { None, Install, Uninstall, Run, Help }
+    public enum ServiceMode { None, Router, Worker, MultiWorker, Publisher }
+    public enum ServiceAction { None, Install, Run, Help }
 
     public sealed class ServiceOptions
     {
         public ServiceOptions()
         {
             Router = "*";
-            Mode = ServiceType.Router;
+            Mode = ServiceMode.None;
             RunConsole = true;
-            WindowsServiceAction = ServiceAction.None;
+            ServiceAction = ServiceAction.None;
         }
 
-        public ServiceType Mode { get; set; }
-
-        /// <summary>
-        /// If workers are running in the same box with router
-        /// </summary>
+        public ServiceMode Mode { get; set; }
         public uint[] Ports { get; set; }
-
-        /// <summary>
-        /// If router is running in the different box with service, router address will be used
-        /// </summary>
         public string Router { get; set; }
-
         public bool RunConsole { get; set; }
-        public ServiceAction WindowsServiceAction { get; set; }
+        public ServiceAction ServiceAction { get; set; }
         public string ServiceName { get; set; }
+        public string HostName { get; set; }
 
         public bool IsValid
         {
             get
             {
+                if (String.IsNullOrEmpty(HostName))
+                    return false;
+
+                if (ServiceAction == JsonRpc.ServiceAction.Install)
+                {
+                    return !String.IsNullOrEmpty(ServiceName);
+                }
+
                 if (Ports != null)
                 {
-                    if (Mode == ServiceType.Router)
+                    if (Mode == ServiceMode.Router)
                         if (Ports.Length != 2 || Router != "*")
                             return false;
 
@@ -48,7 +48,6 @@ namespace MSA.Zmq.JsonRpc
                 }
                 else
                     return false;
-
             }
         }
 

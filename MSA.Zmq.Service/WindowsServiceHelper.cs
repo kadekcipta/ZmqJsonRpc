@@ -56,18 +56,11 @@ namespace MSA.Zmq.Service
             var arguments = new StringBuilder();
             foreach (var arg in args)
             {
-                if (arg.Equals("--install", StringComparison.OrdinalIgnoreCase) ||
-                    arg.Equals("--uninstall", StringComparison.OrdinalIgnoreCase) ||
-                    arg.Equals("--help", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
                 arguments.Append(arg);
                 arguments.Append(" ");
             }
-            arguments.Append("--runservice");
-
+            arguments.Append("--run-service");
             Arguments = arguments.ToString();
-
             Logger.Instance.Info("Arguments: " + Arguments);
         }
 

@@ -13,9 +13,6 @@ namespace MSA.Zmq.Service
 {
     class Program
     {
-        const string RouterServiceName = "ZMSA.Router";
-        const string WorkerServiceName = "ZMSA.Worker";
-
         static string _currentConfigPath;
 
         static void PrintMessage(string message, bool isStrong)
@@ -60,7 +57,6 @@ namespace MSA.Zmq.Service
 
             fsw.EnableRaisingEvents = true;
         }
-
 
         static string GetStartupDirectory()
         {
@@ -111,6 +107,7 @@ namespace MSA.Zmq.Service
 
         static void Main(string[] args)
         {
+            var cancelled = false;
             var config = args.Where((s) => s.Contains("--config-path=")).SingleOrDefault();
             if (!String.IsNullOrEmpty(config))
             {
@@ -125,12 +122,24 @@ namespace MSA.Zmq.Service
 
             ServiceRunner runner = new ServiceRunner(args, LoadTaskHandlerDescriptors());
 
+            if (!runner.Options.IsValid)
+            {
+                Console.WriteLine(String.Format(runner.GetHelp(), System.IO.Path.GetFileName(Environment.GetCommandLineArgs()[0])));
+                return;
+            }
+
             if (runner.Options.RunConsole) // console mode
             {
+                Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) => {
+                    e.Cancel = true;
+                    cancelled = true;
+                    Logger.Instance.Info("Exiting...");
+                };
+
                 runner.Start();
                 WatchServiceAssemblies(Directory.GetCurrentDirectory(), (fname) => {
                     // Reload the task handlers
-                    if (runner.Options.Mode != MSA.Zmq.JsonRpc.ServiceType.Router)
+                    if (runner.Options.Mode != MSA.Zmq.JsonRpc.ServiceMode.Router)
                     {
                         if (Environment.UserInteractive)
                         {
@@ -141,14 +150,15 @@ namespace MSA.Zmq.Service
                     }
                 });
 
-                Console.WriteLine("\nPress Enter to exit");
-                Console.ReadLine();
+                if (runner.Options.Mode != ServiceMode.None)
+                    while (!cancelled) { }
+
                 runner.Dispose();
             }
             else
             {
-                var serviceAction = runner.Options.WindowsServiceAction;
-                if (serviceAction == ServiceAction.Install || serviceAction == ServiceAction.Uninstall)
+                var serviceAction = runner.Options.ServiceAction;
+                if (serviceAction == ServiceAction.Install)
                 {
                     // install the service with arguments
                     AssemblyInstaller installer = new AssemblyInstaller(typeof(Program).Assembly, args);
@@ -157,32 +167,24 @@ namespace MSA.Zmq.Service
                     try
                     {
                         installer.UseNewContext = true;
-                        if (runner.Options.Mode == MSA.Zmq.JsonRpc.ServiceType.Router)
+                        if (runner.Options.Mode == ServiceMode.Router || runner.Options.Mode == ServiceMode.MultiWorker || 
+                            runner.Options.Mode == ServiceMode.Worker || runner.Options.Mode == ServiceMode.Publisher)
                         {
-                            installer.Installers.Add(new ZMQServiceInstaller(RouterServiceName, args));
-                        }
-                        else
-                        {
-                            installer.Installers.Add(new ZMQServiceInstaller(WorkerServiceName, args));
+                            // remove the --install-service arg
+                            var newArgs = args.Where(s => !s.StartsWith("--install-service")).ToArray();
+                            installer.Installers.Add(new ZMQServiceInstaller(runner.Options.ServiceName, newArgs));
                         }
 
                         if (serviceAction == ServiceAction.Install)
                         {
                             installer.Install(state);
                             installer.Commit(state);
-                            Console.WriteLine("Service installed successfully");
-                        }
-                        else if (serviceAction == ServiceAction.Uninstall)
-                        {
-                            installer.Uninstall(state);
-                            Console.WriteLine("Service uninstalled successfully");
                         }
                     }
                     catch (Exception ex)
                     {
                         Logger.Instance.Error(ex);
                         installer.Rollback(state);
-
                         throw;
                     }
                     finally

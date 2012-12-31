@@ -27,10 +27,7 @@ namespace MSA.Zmq.JsonRpc
                 _context = context;
                 _ownedContext = false;
             }
-            else
-            {
-                _context = ZmqContext.Create();
-            }
+
             Active = false;
         }
 
@@ -54,6 +51,11 @@ namespace MSA.Zmq.JsonRpc
         {
             get 
             {
+                if (_ownedContext && _context == null)
+                {
+                    _context = ZmqContext.Create();
+                }
+
                 return _context; 
             }
         }
