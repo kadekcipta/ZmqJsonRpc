@@ -20,9 +20,7 @@ namespace MSA.Zmq.JsonRpc
         private string _address;
         private IMethodCallLogger _methodCallLogger;
         private IMethodCallAuthorizer _methodCallAuthorizer;
-
         private IList<IRequestProcessor> _requestProcessors;
-        private string _stopCommandToken;
 
         public event StartedEventHandler Started;
         public event StoppedEventHandler Stopped;
@@ -46,9 +44,6 @@ namespace MSA.Zmq.JsonRpc
             _servicePort = servicePort;
             _working = false;
             _workerId = workerId;
-
-            // Used for termination token than tend to be unique to prevent accidental/abuse termination from client request
-            _stopCommandToken = Guid.NewGuid().ToString();
 
             // install builtin task handler
             AddTaskHandler(new BuiltinsTasks.TaskLister(this), "systems:");
@@ -310,12 +305,6 @@ namespace MSA.Zmq.JsonRpc
                     {
                         // Gets COMMAND 
                         var command = workerSocket.Receive(Encoding.UTF8);
-                        _working = !_stopCommandToken.Equals(command, StringComparison.OrdinalIgnoreCase);
-                        if (!_working)
-                        {
-                            workerSocket.Send(String.Empty, Encoding.UTF8);
-                            break;
-                        }
 
                         // Gets REQUEST HEADER
                         var requestHeader = JsonConvert.DeserializeObject<JsonRpcRequestHeader>(workerSocket.Receive(Encoding.UTF8));
@@ -339,8 +328,6 @@ namespace MSA.Zmq.JsonRpc
                             }
                         }
                     }
-
-                    Logger.Instance.Info(String.Format("WORKER: On port {0} gracefully terminated", port));
                 }
                 catch (ZeroMQ.ZmqException ex)
                 {
@@ -352,17 +339,6 @@ namespace MSA.Zmq.JsonRpc
                 }
 
                 OnTerminated();
-            }
-        }
-
-        public override void Stop()
-        {
-            using (var socket = ServiceContext.CreateSocket(SocketType.REQ))
-            {
-                socket.Connect(String.Format("tcp://{0}:{1}", _address, _servicePort));
-                socket.Linger = TimeSpan.FromMilliseconds(0);
-                socket.Send(_stopCommandToken, Encoding.UTF8);
-                socket.Receive(Encoding.UTF8);
             }
         }
     }

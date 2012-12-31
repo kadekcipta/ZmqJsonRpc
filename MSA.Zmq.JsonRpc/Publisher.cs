@@ -9,13 +9,12 @@ using Newtonsoft.Json;
 
 namespace MSA.Zmq.JsonRpc
 {
-    public class Publisher : JsonRpcZmqServiceBase
+    internal class Publisher : JsonRpcZmqServiceBase
     {
         private uint _pubPort;
         private uint _pullPort;
         private bool _working;
         private string _address;
-        private string _stopCommandToken;
 
         public event StartedEventHandler Started;
         public event StoppedEventHandler Stopped;
@@ -32,8 +31,6 @@ namespace MSA.Zmq.JsonRpc
             _pubPort = pubPort;
             _pullPort = pullPort;
             _working = false;
-            // Used for termination token than tend to be unique to prevent accidental/abuse termination from client request
-            _stopCommandToken = Guid.NewGuid().ToString();
         }
 
         /// <summary>
@@ -66,7 +63,6 @@ namespace MSA.Zmq.JsonRpc
             if (!_working)
             {
                 ThreadPool.QueueUserWorkItem(obj => StartHandleRequest());
-                _working = true;
             }
         }
 
@@ -87,23 +83,14 @@ namespace MSA.Zmq.JsonRpc
                 try
                 {
                     _working = true;
-
                     while (_working)
                     {
-                        var message = pullSocket.Receive(Encoding.UTF8, TimeSpan.FromMilliseconds(3000));
-                        _working = !_stopCommandToken.Equals(message, StringComparison.OrdinalIgnoreCase);
-                        if (!_working)
+                        var message = pullSocket.Receive(Encoding.UTF8);
+                        if (!String.IsNullOrEmpty(message))
                         {
-                            break;
-                        }
-                        else if (!String.IsNullOrEmpty(message))
-                        {
-                            Info(message);
                             pubSocket.Send(message, Encoding.UTF8);
                         }
                     }
-
-                    Info("PUBLISHER: Terminated");
                 }
                 catch (ZeroMQ.ZmqException ex)
                 {
@@ -115,19 +102,6 @@ namespace MSA.Zmq.JsonRpc
                 }
 
                 OnTerminated();
-            }
-        }
-
-        public override void Stop()
-        {
-            if (_working)
-            {
-                using (var socket = ServiceContext.CreateSocket(SocketType.PUSH))
-                {
-                    socket.Connect(String.Format("tcp://{0}:{1}", _address, _pullPort));
-                    socket.Linger = TimeSpan.FromMilliseconds(0);
-                    socket.Send(_stopCommandToken, Encoding.UTF8, TimeSpan.FromSeconds(1));
-                }
             }
         }
     }

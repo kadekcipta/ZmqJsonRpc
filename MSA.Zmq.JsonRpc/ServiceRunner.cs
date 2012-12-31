@@ -28,7 +28,7 @@ namespace MSA.Zmq.JsonRpc
         {
             _disposed = false;
             _services = new List<JsonRpcZmqServiceBase>();
-            _context = ZmqContext.Create();
+            
 
             if (handlerDescriptors != null)
             {
@@ -44,6 +44,9 @@ namespace MSA.Zmq.JsonRpc
         private void InitializeServices()
         {
             DestroyServices();
+            if (_context == null)
+                _context = ZmqContext.Create();
+
             switch (Options.Mode)
             {
                 case ServiceMode.Worker:
@@ -96,9 +99,16 @@ namespace MSA.Zmq.JsonRpc
 
         private void DestroyServices()
         {
-            foreach (var service in _services)
+            try
             {
-                service.Dispose();
+                if (_context != null)
+                {
+                    _context.Dispose();
+                    _context = null;
+                }
+            }
+            catch
+            {
             }
         }
 

@@ -134,6 +134,8 @@ namespace MSA.Zmq.Service
                     e.Cancel = true;
                     cancelled = true;
                     Logger.Instance.Info("Exiting...");
+                    runner.Dispose();
+                    return;
                 };
 
                 runner.Start();
@@ -152,8 +154,6 @@ namespace MSA.Zmq.Service
 
                 if (runner.Options.Mode != ServiceMode.None)
                     while (!cancelled) { }
-
-                runner.Dispose();
             }
             else
             {
