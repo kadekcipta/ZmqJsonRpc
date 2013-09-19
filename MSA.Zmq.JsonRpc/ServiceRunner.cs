@@ -21,13 +21,13 @@ namespace MSA.Zmq.JsonRpc
     {
         private ZmqContext _context;
         private bool _disposed;
-        private IList<JsonRpcZmqServiceBase> _services;
+        private IList<JsonRpcZmqBase> _services;
         private IList<TaskHandlerDescriptor> _handlerDescriptors;
 
         public ServiceRunner(string[] args, params TaskHandlerDescriptor[] handlerDescriptors)
         {
             _disposed = false;
-            _services = new List<JsonRpcZmqServiceBase>();
+            _services = new List<JsonRpcZmqBase>();
             
 
             if (handlerDescriptors != null)

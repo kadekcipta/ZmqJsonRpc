@@ -10,7 +10,7 @@ namespace Server.Demo
     [JsonRpcServiceHandler]
     class SimpleTestHandler
     {
-        [JsonRpcMethod(Authorize = true, LogCall = false, Description = "Just say hello", RequiredRoles = "admin, developer")]
+        [JsonRpcMethod(Authorize = true, LogCall = false, Description = "Just echoing")]
         public string Echo(string message)
         {
             return message;
@@ -39,12 +39,15 @@ namespace Server.Demo
     {
         static void Main(string[] args)
         {
-            using (var worker = Worker.Create("127.0.0.1", 3001))
+            Console.WriteLine("RPC server and event publisher");
+            using (var context = ZeroMQ.ZmqContext.Create())
+            using (var worker = Worker.Create("127.0.0.1", 3001, context))
+            using (var publisher = Publisher.Create("127.0.0.1", 3002, 3003, context))
             {
-                worker.AddTaskHandler(new TaskHandlerDescriptor(typeof(SimpleTestHandler), null));
+                worker.AddTaskHandler(new TaskHandlerDescriptor(typeof(SimpleTestHandler), "namespace:"));
                 worker.Start();
+                publisher.Start();
 
-                Console.WriteLine("Press ENTER to exit...");
                 Console.ReadLine();
             }
         }

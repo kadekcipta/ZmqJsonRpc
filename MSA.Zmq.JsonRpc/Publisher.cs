@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 
 namespace MSA.Zmq.JsonRpc
 {
-    internal class Publisher : JsonRpcZmqServiceBase
+    public class Publisher : JsonRpcZmqBase
     {
         private uint _pubPort;
         private uint _pullPort;
@@ -85,10 +85,21 @@ namespace MSA.Zmq.JsonRpc
                     _working = true;
                     while (_working)
                     {
-                        var message = pullSocket.Receive(Encoding.UTF8);
-                        if (!String.IsNullOrEmpty(message))
+                        if (ServiceContext != null)
                         {
-                            pubSocket.Send(message, Encoding.UTF8);
+                            var message = pullSocket.Receive(Encoding.UTF8);
+                            if (!String.IsNullOrEmpty(message) && ServiceContext != null)
+                            {
+                                pubSocket.Send(message, Encoding.UTF8);
+                            }
+                            else
+                            {
+                                _working = false;
+                            }
+                        }
+                        else
+                        {
+                            _working = false;
                         }
                     }
                 }

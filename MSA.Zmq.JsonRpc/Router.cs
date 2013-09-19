@@ -14,7 +14,7 @@ namespace MSA.Zmq.JsonRpc
     /// Pattern:
     /// ROUTER - DEALER + control channel
     /// </summary>
-    public class Router: JsonRpcZmqServiceBase
+    public class Router: JsonRpcZmqBase
     {
         private ZmqSocket _frontendSocket;
         private ZmqSocket _backendSocket;

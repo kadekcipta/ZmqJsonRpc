@@ -11,13 +11,15 @@ namespace Sub.Demo
     {
         static void Main(string[] args)
         {
-            using (var client = Client.CreateSubscriberContext("tcp://127.0.0.1:3001"))
+            Console.WriteLine("Subscribe for event");
+            using (var client = Client.CreateSubscriberContext("tcp://127.0.0.1:3002"))
             {
-                client.Subscribe("update", (s) => {
+                client.Subscribe("AddNumberEvent", (s) =>
+                {
                     Console.WriteLine(s);
                 });
 
-                while (true) { }
+                Console.ReadLine();
             }
         }
     }

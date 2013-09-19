@@ -15,6 +15,9 @@ namespace MSA.Zmq.JsonRpc
         Success = 1
     }
 
+    /// <summary>
+    /// Helper to manage the single context creation per process
+    /// </summary>
     internal class ContextManager
     {
         private static ZmqContext _context;
@@ -106,30 +109,7 @@ namespace MSA.Zmq.JsonRpc
         public Action<string> ResultProcessor { get; set; }
     }
 
-    public static class Client
-    { 
-        public static JsonRpcClient CreateJsonRpcContext(string userName, string password, params string[] serviceEndPoints)
-        {
-            return new JsonRpcClient(userName, password, serviceEndPoints);
-        }
-
-        public static JsonRpcClient CreateJsonRpcContext(params string[] serviceEndPoints)
-        {
-            return new JsonRpcClient(String.Empty, String.Empty, serviceEndPoints);
-        }
-
-        public static SubscriberClient CreateSubscriberContext(string serviceEndPoint)
-        {
-            return new SubscriberClient(serviceEndPoint);
-        }
-
-        public static PushClient CreatePushContext(string serviceEndPoint)
-        {
-            return new PushClient(serviceEndPoint);
-        }
-    }
-
-    public sealed class JsonRpcClient: ClientBase
+    public sealed class JsonRpcClient : ClientBase
     {
         const int DEF_CONNECTION_TIMEOUT = 5000; // in milliseconds
         const int MAX_CALL_QUEUE = 10000;
@@ -151,8 +131,9 @@ namespace MSA.Zmq.JsonRpc
         public event ErrorEventHandler ServiceError;
         public event BeforeSendRequestHandler BeforeSendRequest;
 
-        internal JsonRpcClient(params string[] serviceEndPoints): this(String.Empty, String.Empty, serviceEndPoints) {}
-        internal JsonRpcClient(string userName, string password, params string[] serviceEndPoints): base()
+        internal JsonRpcClient(params string[] serviceEndPoints) : this(String.Empty, String.Empty, serviceEndPoints) { }
+        internal JsonRpcClient(string userName, string password, params string[] serviceEndPoints)
+            : base()
         {
             _serviceEndPoints = serviceEndPoints;
             _resultProcessor = new JsonRpcResultProcessor();
@@ -295,6 +276,7 @@ namespace MSA.Zmq.JsonRpc
 
                                 if (taskItem != null)
                                 {
+                                    // Multiparts message frame
                                     socket.SendMore(String.Empty, Encoding.UTF8);
                                     socket.SendMore(JsonConvert.SerializeObject(requestHeader), Encoding.UTF8);
                                     socket.Send(taskItem.CommandRequest, Encoding.UTF8);
@@ -486,11 +468,12 @@ namespace MSA.Zmq.JsonRpc
             _pushing = false;
         }
 
-        private void EnsurePushThreadRunning()
+        internal void EnsurePushThreadRunning()
         {
             if (_pushThread == null)
             {
-                _pushThread = new Thread(new ThreadStart(() => {
+                _pushThread = new Thread(new ThreadStart(() =>
+                {
                     _pushing = true;
                     using (var socket = Context.CreateSocket(SocketType.PUSH))
                     {
@@ -515,6 +498,7 @@ namespace MSA.Zmq.JsonRpc
 
                 _pushThread.IsBackground = true;
                 _pushThread.Start();
+                System.Threading.Thread.Sleep(100);
             }
         }
 
@@ -578,7 +562,8 @@ namespace MSA.Zmq.JsonRpc
 
         private void CreateSubscriptionThread(AsyncOperation asyncOp, string prefix, Action<string> callback)
         {
-            ThreadPool.QueueUserWorkItem(obj => {
+            ThreadPool.QueueUserWorkItem(obj =>
+            {
                 HandleSubscription(asyncOp, prefix, callback);
             });
         }
@@ -587,6 +572,32 @@ namespace MSA.Zmq.JsonRpc
         {
             var asyncOp = AsyncOperationManager.CreateOperation(null);
             CreateSubscriptionThread(asyncOp, prefix, callback);
+        }
+    }
+
+    public static class Client
+    {
+        public static JsonRpcClient CreateJsonRpcContext(string userName, string password, params string[] serviceEndPoints)
+        {
+            return new JsonRpcClient(userName, password, serviceEndPoints);
+        }
+
+        public static JsonRpcClient CreateJsonRpcContext(params string[] serviceEndPoints)
+        {
+            return new JsonRpcClient(String.Empty, String.Empty, serviceEndPoints);
+        }
+
+        public static SubscriberClient CreateSubscriberContext(string serviceEndPoint)
+        {
+            return new SubscriberClient(serviceEndPoint);
+        }
+
+        public static PushClient CreatePushContext(string serviceEndPoint)
+        {
+            var pusher = new PushClient(serviceEndPoint);
+            pusher.EnsurePushThreadRunning();
+
+            return pusher;
         }
     }
 }

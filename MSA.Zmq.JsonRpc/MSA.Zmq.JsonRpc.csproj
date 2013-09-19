@@ -111,7 +111,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BuiltinsTasks\CmdHandler.cs" />
     <Compile Include="BuiltinsTasks\PingHandler.cs" />
     <Compile Include="BuiltinsTasks\TaskLister.cs" />
     <Compile Include="Delegates.cs" />
@@ -137,7 +136,7 @@
     <Compile Include="Worker.cs" />
     <Compile Include="MethodCallResolver.cs" />
     <Compile Include="ServiceRunner.cs" />
-    <Compile Include="JsonRpcZmqServiceBase.cs" />
+    <Compile Include="JsonRpcZmqBase.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">

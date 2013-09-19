@@ -9,14 +9,14 @@ using Newtonsoft.Json;
 
 namespace MSA.Zmq.JsonRpc
 {
-    public class Worker : JsonRpcZmqServiceBase
+    public class Worker : JsonRpcZmqBase
     {
         private IList<MethodCallResolver> _resolvers;
         private bool _connectToRouter;
         private uint _servicePort;
         private bool _working;
         private string _workerId;
-        private bool _freezed;
+        private bool _frozen;
         private string _address;
         private IMethodCallLogger _methodCallLogger;
         private IMethodCallAuthorizer _methodCallAuthorizer;
@@ -37,18 +37,13 @@ namespace MSA.Zmq.JsonRpc
 
         private Worker(string address, uint servicePort, string workerId, ZmqContext context = null): base(context)
         {
-            _freezed = false;
+            _frozen = false;
             _address = address;
             _resolvers = new List<MethodCallResolver>();
             _requestProcessors = new List<IRequestProcessor>();
             _servicePort = servicePort;
             _working = false;
             _workerId = workerId;
-
-            // install builtin task handler
-            AddTaskHandler(new BuiltinsTasks.TaskLister(this), "systems:");
-            AddTaskHandler(new BuiltinsTasks.PingHandler(), "systems:");
-            AddTaskHandler(new BuiltinsTasks.CmdHandler(), "systems:");
         }
 
         public void AddTaskHandler(TaskHandlerDescriptor taskHandlerDescriptor)
@@ -78,7 +73,7 @@ namespace MSA.Zmq.JsonRpc
 
         public void RemoveAllResolvers()
         {
-            if (!_freezed)
+            if (!_frozen)
             {
                 throw new InvalidOperationException("You must suspend the worker first before calling this operation");
             }
@@ -106,12 +101,12 @@ namespace MSA.Zmq.JsonRpc
 
         public void BeginSuspend()
         {
-            _freezed = true;
+            _frozen = true;
         }
 
         public void EndSuspend()
         {
-            _freezed = false;
+            _frozen = false;
         }
 
         /// <summary>
@@ -220,7 +215,7 @@ namespace MSA.Zmq.JsonRpc
                         PreprocessRequest(requestHeader, request);
 
                         // When freezed, just discard the requests
-                        if (!_freezed)
+                        if (!_frozen)
                         {
                             foreach (var resolver in _resolvers)
                             {
@@ -264,7 +259,6 @@ namespace MSA.Zmq.JsonRpc
             {
                 _connectToRouter = !String.IsNullOrEmpty(RouterAddress);
                 ThreadPool.QueueUserWorkItem(obj => StartHandleRequest((uint)obj), _servicePort);
-                _working = true;
             }
         }
 
@@ -282,6 +276,7 @@ namespace MSA.Zmq.JsonRpc
             {
                 if (_connectToRouter)
                 {
+                    // In case it's employed behind router
                     workerSocket.Connect(RouterAddress);
                 }
                 
@@ -303,29 +298,42 @@ namespace MSA.Zmq.JsonRpc
 
                     while (_working)
                     {
-                        // Gets COMMAND 
-                        var command = workerSocket.Receive(Encoding.UTF8);
-
-                        // Gets REQUEST HEADER
-                        var requestHeader = JsonConvert.DeserializeObject<JsonRpcRequestHeader>(workerSocket.Receive(Encoding.UTF8));
-
-                        // Gets JSON workloads (JSON-RPC 2.0 spec)
-                        var jsonData = workerSocket.Receive(Encoding.UTF8);
-
-                        // Process the request
-                        var result = ProcessRequest(requestHeader, jsonData);
-
-                        // Send the response back to the client
                         if (ServiceContext != null)
                         {
-                            if (String.IsNullOrEmpty(result))
+                            // Gets COMMAND (not used)
+                            var command = workerSocket.Receive(Encoding.UTF8);
+
+                            // Gets REQUEST HEADER
+                            var jsonHeader = workerSocket.Receive(Encoding.UTF8);
+                            if (!String.IsNullOrEmpty(jsonHeader))
                             {
-                                workerSocket.Send(String.Empty, Encoding.UTF8);
+                                var requestHeader = JsonConvert.DeserializeObject<JsonRpcRequestHeader>(jsonHeader);
+
+                                // Gets JSON workloads (JSON-RPC 2.0 spec)
+                                var jsonData = workerSocket.Receive(Encoding.UTF8);
+
+                                // Process the request
+                                var result = ProcessRequest(requestHeader, jsonData);
+
+                                // Send the response back to the client
+
+                                if (String.IsNullOrEmpty(result))
+                                {
+                                    workerSocket.Send(String.Empty, Encoding.UTF8);
+                                }
+                                else
+                                {
+                                    workerSocket.Send(result, Encoding.UTF8);
+                                }
                             }
                             else
                             {
-                                workerSocket.Send(result, Encoding.UTF8);
+                                _working = false;
                             }
+                        }
+                        else
+                        {
+                            _working = false;
                         }
                     }
                 }

@@ -12,72 +12,41 @@ namespace Client.Demo
     {
         static void Main(string[] args)
         {
-            using (var client = MSA.Zmq.JsonRpc.Client.CreatePushContext("tcp://127.0.0.1:3002"))
-            using (var sub = MSA.Zmq.JsonRpc.Client.CreateSubscriberContext("tcp://127.0.0.1:3001"))
+            using (var client = MSA.Zmq.JsonRpc.Client.CreateJsonRpcContext("tcp://127.0.0.1:3001"))
+            using (var subscriber = MSA.Zmq.JsonRpc.Client.CreateSubscriberContext("tcp://127.0.0.1:3002"))
+            using (var pusher = MSA.Zmq.JsonRpc.Client.CreatePushContext("tcp://127.0.0.1:3003"))
             {
-                sub.Subscribe("update", (s) => {
+                // subscribe for event triggered from here
+                subscriber.Subscribe("AddNumberEvent", (s) =>
+                {
                     Console.WriteLine(s);
                 });
 
-                //var n = 100;
-                //var counter = 0;
-                //var sw = Stopwatch.StartNew();
-                //for (var x = 0; x < n; x++)
-                //{
-                //    //var result = client.CallMethod<double>("AddNumber", x, x*2);
-                //    client.CallMethodAsync<double>("AddNumber", (ret) =>
-                //    {
-                //        //Console.WriteLine("Calling AddNumber: {0}", ret);
-                //        if (counter >= n - 1)
-                //        {
-                //            sw.Stop();
-                //            var d = (n * 1000.0) / sw.ElapsedMilliseconds;
-                //            Console.WriteLine("Elapsed: {0} ms = {1} in seconds", sw.ElapsedMilliseconds, Math.Round(d));
-                //        }
-
-                //        counter++;
-                //    }, x, x * 2);
-                //}
-
-
-                //client.CallMethodAsync("Dumb", "This is a void returned method ");
-                //client.CallMethodAsync<string>("Echo", (ret) =>
-                //{
-                //    Console.WriteLine("Calling Echo: {0}", ret);
-                //}, "Hello ZMQ JSON-RPC");
-
-                //client.CallMethodAsync<DateTime>("EchoDate", (ret) =>
-                //{
-                //    Console.WriteLine(ret);
-                //}, DateTime.Now);
-
-                //var ed = client.CallMethod<DateTime>("EchoDate", DateTime.Now);
-                //Console.WriteLine(ed);
-
-                //client.CallMethodAsync<IList<MSA.Zmq.JsonRpc.Models.TaskDescriptor>>("systems:GetAvailableTasks", (list) =>
-                //{
-                //    foreach (var task in list)
-                //    {
-                //        Console.WriteLine(task.Name);
-                //    }
-                //});
-
-                var cmd = "";
-                do
+                // subscribe for event triggered from another agent
+                subscriber.Subscribe("oob:notification", (s) =>
                 {
-                    Console.Write("\nYour command: ");
-                    cmd = Console.ReadLine();
-                    if (!String.IsNullOrEmpty(cmd) && !cmd.Equals("exit", StringComparison.OrdinalIgnoreCase))
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("OOB Notification: {0}", s);
+                    Console.ResetColor();
+                });
+
+                // add some delay
+                System.Threading.Thread.Sleep(1000);
+
+                for (var i = 0; i < 10; i++)
+                {
+                    Console.WriteLine("Calling remote method");
+                    client.CallMethodAsync<double>("namespace:AddNumber", (ret) =>
                     {
-                        client.Push("update", cmd);
-                        //client.CallMethodAsync<string>("systems:Cmd", (o) =>
-                        //{
-                        //    Console.WriteLine(o);
-                        //    Console.Write("\nYour command: ");
-                        //}, cmd);
-                    }
+                        // just for fun to publish the event
+                        pusher.Push("AddNumberEvent", String.Format("AddNumber called successfully => {0}", ret));
+                        //Console.WriteLine(ret);
+                    }, 200, 50*i);
+
+                    System.Threading.Thread.Sleep(100);
                 }
-                while (cmd != "exit");
+
+                Console.ReadLine();
             }
         }
     }
