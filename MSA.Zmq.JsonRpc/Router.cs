@@ -98,7 +98,6 @@ namespace MSA.Zmq.JsonRpc
                     
                     //int size = 0;
                     source.Receive(buffer);
-                    //var message = source.Receive(Encoding.UTF8);
                     if (IsStopCommand(Encoding.UTF8.GetString(buffer)))
                     {
                         _routing = false;

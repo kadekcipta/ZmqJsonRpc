@@ -9,12 +9,12 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 - Asynchronous and synchronous client
 - Method namespacing to group methods or to identify a class
 - PUB/SUB for notification 
-- ROUTER/DEALER for worker distribution to provide basic scalability
-- Windows service that can install multiple service modes and names using single executable (experimental)
+- ROUTER/DEALER for worker distribution to provide basic scalability (*)
+- Windows service that can install multiple service modes and names using single executable (*)
 
 #Goal
 - Provide simple .NET based system for internal task distribution
-- Easy to scale by adding more workers behind router
+- Easy to scale by adding more workers behind router (*)
 - Easy to monitor 
 
 #Todos
@@ -106,7 +106,7 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 Please refer to Server.Demo, Client.Demo and Push.Demo projects for working samples 
 Run them together as multiple startup projects
 
-##Service usages
+##Service usages (*)
 - Put the required assemblies in the same folder with service executable
 - Register the each assembly containing the handler class
 
@@ -120,3 +120,5 @@ Run them together as multiple startup projects
 ```
 
 - Execute the service executable with --help for more information
+
+(*) Not ready, need modifications to work on zmq 3.x .NET client (ClrZmq)
