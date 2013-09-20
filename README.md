@@ -17,7 +17,7 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 - Easy to scale by adding more workers behind router
 - Easy to monitor 
 
-#TODO
+#Todos
 - Code comments
 - More tests
 - Improve a lot of things if not all
@@ -102,6 +102,9 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 
 </code>
 </pre> 
+
+Please refer to Server.Demo, Client.Demo and Push.Demo projects for working samples 
+Run them together as multiple startup projects
 
 ##Service usages
 - Put the required assemblies in the same folder with service executable
