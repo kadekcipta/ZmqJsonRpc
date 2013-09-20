@@ -61,7 +61,7 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 
 	// asynchronous call
 	var client = MSA.Zmq.JsonRpc.Client.CreateJsonRpcContext("tcp://127.0.0.1:3001");
-    client.CallMethodAsync<double>("namespace:AddNumber", (ret) => 
+    client.CallMethodAsync&lt;double&gt;("namespace:AddNumber", (ret) => 
 	{
         Console.WriteLine(ret);
     }, 200, 50);
@@ -69,7 +69,7 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 	....
 
 	// synchronous call
-	var ret = client.CallMethod<double>("namespace:AddNumber", 200, 50);
+	var ret = client.CallMethod&lt;double&gt;("namespace:AddNumber", 200, 50);
 
 </code>
 </pre> 
