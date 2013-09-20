@@ -108,13 +108,14 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 - Register the each assembly containing the handler class
 
 <pre>
-  
+
+```
   <zmsa-handlers>
     <handlers>
       <!--<add handlerName="sampleHandler" assemblyName="SameHandlerAssembly" endpointPrefix=""/>-->
     </handlers>
   </zmsa-handlers>
-
+```
 </pre>
 
 - Execute the service executable with --help for more information
