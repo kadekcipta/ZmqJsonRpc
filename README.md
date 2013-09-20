@@ -108,7 +108,7 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 - Register the each assembly containing the handler class
 
 <pre>
-<code>
+<xml>
   
   <zmsa-handlers>
     <handlers>
@@ -116,7 +116,7 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
     </handlers>
   </zmsa-handlers>
 
-</code>
+</xml>
 </pre>
 
 - Execute the service executable with --help for more information
