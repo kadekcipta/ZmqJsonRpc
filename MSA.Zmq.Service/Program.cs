@@ -63,11 +63,6 @@ namespace MSA.Zmq.Service
             return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         }
 
-        static string GetCacheDirectory()
-        {
-            return Path.Combine(GetStartupDirectory(), "__cache");
-        }
-
         static TaskHandlerDescriptor[] LoadTaskHandlerDescriptors()
         {
             var taskDescriptors = new List<TaskHandlerDescriptor>();
@@ -140,7 +135,7 @@ namespace MSA.Zmq.Service
 
                 runner.Start();
                 WatchServiceAssemblies(Directory.GetCurrentDirectory(), (fname) => {
-                    // Reload the task handlers
+                    // Reload the task handlers, not ready yet
                     if (runner.Options.Mode != MSA.Zmq.JsonRpc.ServiceMode.Router)
                     {
                         if (Environment.UserInteractive)

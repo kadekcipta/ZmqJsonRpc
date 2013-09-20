@@ -88,12 +88,13 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\clrzmq.3.0.0-rc1\lib\net40\clrzmq.dll</HintPath>
     </Reference>
-    <Reference Include="log4net, Version=1.2.11.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
+    <Reference Include="log4net, Version=1.2.12.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\log4net.2.0.0\lib\net40-full\log4net.dll</HintPath>
+      <HintPath>..\packages\log4net.2.0.1\lib\net40-full\log4net.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>..\packages\Newtonsoft.Json.4.5.11\lib\net40\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Newtonsoft.Json.5.0.6\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -114,6 +115,7 @@
     <Compile Include="BuiltinsTasks\PingHandler.cs" />
     <Compile Include="BuiltinsTasks\TaskLister.cs" />
     <Compile Include="Delegates.cs" />
+    <Compile Include="Properties\AssemblyInfo.log4net.cs" />
     <Compile Include="Publisher.cs" />
     <Compile Include="IHandlerFactory.cs" />
     <Compile Include="IMethodCallAuthorizer.cs" />

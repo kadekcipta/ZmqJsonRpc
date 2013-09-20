@@ -12,7 +12,13 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 - ROUTER/DEALER for worker distribution to provide basic scalability
 - Windows service that can install multiple service modes and names using single executable (experimental)
 
+#Goal
+- Provide simple .NET based system for internal task distribution
+- Easy to scale by adding more workers behind router
+- Easy to monitor 
+
 #TODO
+- Code comments
 - More tests
 - Improve a lot of things if not all
 
@@ -68,5 +74,49 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 </code>
 </pre> 
 
+##PUB/SUB
+
+<pre>
+<code>
+
+	// Publisher setup
+	// It will bind PUB on 3002 and PULL socket on 3003
+	var publisher = Publisher.Create("127.0.0.1", 3002, 3003, context);
+
+	....
+
+	// Subscriber
+	var subscriber = MSA.Zmq.JsonRpc.Client.CreateSubscriberContext("tcp://127.0.0.1:3002");
+
+    // subscribe for event triggered from another agent
+    subscriber.Subscribe("oob:notification", (s) =>
+    {
+		// react with the event
+    });
+	
+	....
+
+	// Publisher / PUSH
+	var client = Client.CreatePushContext("tcp://127.0.0.1:3003");
+	pusher.Push("oob:notification", "some data here");
+
+</code>
+</pre> 
+
 ##Service usages
-- TBD
+- Put the required assemblies in the same folder with service executable
+- Register the each assembly containing the handler class
+
+<pre>
+<code>
+  
+  <zmsa-handlers>
+    <handlers>
+      <!--<add handlerName="sampleHandler" assemblyName="SameHandlerAssembly" endpointPrefix=""/>-->
+    </handlers>
+  </zmsa-handlers>
+
+</code>
+</pre>
+
+- Execute the service executable with --help for more information
