@@ -14,8 +14,8 @@ This is my experimentation and proof of concept using ZMQ as task distribution f
 
 #Goal
 - Provide simple .NET based system for internal task distribution
-- Easy to scale by adding more workers behind router (*)
-- Easy to monitor 
+- Easy to scale by adding more workers behind ROUTER/DEALER socket (*)
+- Easy to monitor the message flow
 
 #Todos
 - Code comments
